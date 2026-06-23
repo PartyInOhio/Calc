@@ -802,6 +802,20 @@ body{font-family:var(--font-ui);background:var(--bg-base);color:var(--text-prima
   </div>
 </div><!-- /reverse raid -->
 
+<!-- Export bar -->
+<div style="max-width:1440px;margin:0 auto;padding:8px 32px 44px;">
+  <div class="calc-row">
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Export RAID Results</div>
+      <div class="calc-hint" style="margin-top:3px;">Download a text report or copy to clipboard — captures both calculators' current inputs &amp; results.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-secondary" id="raid-copy-btn" onclick="raidCopyClipboard()">📋 Copy to Clipboard</button>
+      <button class="btn btn-primary" onclick="raidExportTxt()">⬇ Download .txt</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Data ──────────────────────────────────────────────────────────────────────
 const OS_OPTS = [
@@ -1739,6 +1753,162 @@ function rvClear() {
 
 rvLevelChange();
 rvCalc();
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function getExportText() {
+  const ts = new Date().toLocaleString();
+  const L  = '═'.repeat(64);
+  const D  = '─'.repeat(64);
+
+  // Read text content, adding a space before storage unit suffixes
+  function tv(id) {
+    const el = document.getElementById(id);
+    return el ? el.textContent.replace(/(\d)(TB|GB|PB)/g, '$1 $2').trim() : '—';
+  }
+  // Read input value
+  function ti(id) {
+    const el = document.getElementById(id);
+    return el ? (el.value || '—') : '—';
+  }
+  // Read selected option text
+  function tsel(id) {
+    const el = document.getElementById(id);
+    return el ? el.options[el.selectedIndex].text : '—';
+  }
+  // Fixed-width label/value pair
+  function row(lbl, val, w) {
+    w = w || 26;
+    return '  ' + lbl.padEnd(w) + val;
+  }
+
+  // ── Forward RAID inputs ───────────────────────────────────────────────────
+  const fN      = ti('r-disks');
+  const fCap    = ti('r-cap');
+  const fUnit   = ti('r-unit');
+  const fLevel  = tsel('r-level').split(' — ')[0];
+
+  // ── Forward RAID results ──────────────────────────────────────────────────
+  const fUsable  = tv('r-usable-val');
+  const fFormula = tv('r-usable-formula');
+  const fRaw     = tv('r-raw-val');
+  const fRawFml  = tv('r-raw-formula');
+  const fFaultN  = tv('r-fault-val');
+  const fFaultD  = tv('r-fault-sub');
+  const fEff     = tv('r-eff-val');
+  const fEffSub  = tv('r-eff-sub');
+  const fValid   = fUsable !== '—' && fUsable !== '';
+
+  // ── Reverse RAID inputs ───────────────────────────────────────────────────
+  const rTarget   = ti('rv-target');
+  const rTUnit    = ti('rv-unit');
+  const rLevel    = tsel('rv-level').split(' — ')[0];
+  const rModeLbl  = rvMode === 'count' ? 'Disk Count' : 'Disk Size';
+  const rKnownLbl = tv('rv-known-label');
+  const rKnown    = ti('rv-known');
+  const rKnownU   = document.getElementById('rv-known-unit').style.display === 'none'
+    ? 'disks' : ti('rv-known-unit');
+
+  // ── Reverse RAID results ──────────────────────────────────────────────────
+  const rDLbl    = tv('rv-disks-lbl');
+  const rDVal    = tv('rv-disks-val');
+  const rDSub    = tv('rv-disks-sub');
+  const rUsable  = tv('rv-usable-val');
+  const rUSub    = tv('rv-usable-sub');
+  const rRaw     = tv('rv-raw-val');
+  const rRSub    = tv('rv-raw-sub');
+  const rFaultN  = tv('rv-fault-val');
+  const rFaultD  = tv('rv-fault-sub');
+  const rNote    = tv('rv-note');
+  const rValid   = rDVal !== '—' && rDVal !== '';
+
+  const lines = [
+    L,
+    '  RAID STORAGE CALCULATOR — EXPORT REPORT',
+    '  Generated : ' + ts,
+    '  Source    : partyinohio.github.io/Calc',
+    L,
+    '',
+    '  FORWARD RAID CALCULATOR',
+    D,
+    '  INPUTS',
+    row('  Disks:', fN),
+    row('  Disk Capacity:', fCap + ' ' + fUnit),
+    row('  RAID Level:', fLevel),
+    '',
+    '  RESULTS' + (fValid ? '' : '  (not yet calculated)'),
+    row('  Usable Capacity:', fValid ? fUsable : '—'),
+    fValid && fFormula ? row('  Formula:', fFormula) : null,
+    row('  Raw / Total:', fValid ? fRaw : '—'),
+    fValid && fRawFml ? row('  Raw Detail:', fRawFml) : null,
+    row('  Fault Tolerance:', fValid ? (fFaultN + (fFaultD ? '  (' + fFaultD + ')' : '')) : '—'),
+    row('  Storage Efficiency:', fValid ? fEff : '—'),
+    fValid && fEffSub ? row('  Eff. Detail:', fEffSub) : null,
+    '',
+    L,
+    '',
+    '  TARGET CAPACITY PLANNER  (Reverse)',
+    D,
+    '  INPUTS',
+    row('  Target Usable:', rTarget + ' ' + rTUnit),
+    row('  RAID Level:', rLevel),
+    row('  Solve Mode:', rModeLbl),
+    row('  ' + rKnownLbl + ':', rKnown + ' ' + rKnownU),
+    '',
+    '  RESULTS' + (rValid ? '' : '  (not yet calculated)'),
+    row('  ' + rDLbl + ':', rValid ? rDVal : '—'),
+    rValid && rDSub ? row('  Detail:', rDSub) : null,
+    row('  Actual Usable:', rValid ? rUsable : '—'),
+    rValid && rUSub ? row('  Target:', rUSub) : null,
+    row('  Raw Capacity:', rValid ? rRaw : '—'),
+    rValid && rRSub ? row('  Raw Detail:', rRSub) : null,
+    row('  Fault Tolerance:', rValid ? (rFaultN + (rFaultD ? '  (' + rFaultD + ')' : '')) : '—'),
+    rValid && rNote ? '' : null,
+    rValid && rNote ? row('  Note:', rNote) : null,
+    '',
+    L,
+  ].filter(l => l !== null).join('\n');
+
+  return lines;
+}
+
+function raidExportTxt() {
+  const text = getExportText();
+  const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'raid-calc-' + new Date().toISOString().slice(0, 10) + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function raidCopyClipboard() {
+  const text = getExportText();
+  const btn  = document.getElementById('raid-copy-btn');
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (_) {
+    // Fallback for browsers where clipboard API is unavailable
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  const orig = btn.textContent;
+  btn.textContent = '✓ Copied!';
+  btn.style.color = 'var(--accent-green)';
+  btn.style.borderColor = 'rgba(16,185,129,0.3)';
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }, 2000);
+}
 </script>
 </body>
 </html>
