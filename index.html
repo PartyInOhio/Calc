@@ -262,6 +262,34 @@ body{font-family:var(--font-ui);background:var(--bg-base);color:var(--text-prima
 /* Responsive */
 @media(max-width:1100px){.main{grid-template-columns:1fr;}.right-col{display:grid;grid-template-columns:1fr 1fr;}}
 @media(max-width:700px){.main{padding:16px;}.stats-grid{grid-template-columns:1fr 1fr;}.right-col{display:flex;}}
+
+/* ── RAID Calculator ─────────────────────────────────────────────────────── */
+.section-sep{display:flex;align-items:center;gap:16px;max-width:1440px;margin:0 auto;padding:0 32px;}
+.sep-line{flex:1;height:1px;background:var(--border-subtle);}
+.sep-label{font-size:12px;font-weight:700;color:var(--text-muted);white-space:nowrap;font-family:var(--font-mono);letter-spacing:0.08em;text-transform:uppercase;}
+.raid-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.raid-metric{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:16px 18px;}
+.raid-metric-lbl{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;}
+.raid-metric-val{font-size:28px;font-weight:700;font-family:var(--font-mono);line-height:1;}
+.raid-metric-unit{font-size:13px;font-weight:500;color:var(--text-muted);margin-left:3px;}
+.raid-metric-sub{font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;}
+.raid-formula{font-size:10px;color:var(--text-muted);font-family:var(--font-mono);margin-top:4px;}
+.raid-alert-err{padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;line-height:1.6;margin-top:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#FCA5A5;}
+.raid-eff-wrap{margin-top:18px;padding-top:16px;border-top:1px solid var(--border-subtle);}
+.raid-eff-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;}
+.raid-eff-pct{font-size:13px;font-family:var(--font-mono);font-weight:700;}
+.raid-level-tag{display:inline-block;font-size:11px;font-weight:700;font-family:var(--font-mono);padding:3px 9px;border-radius:4px;letter-spacing:0.06em;}
+.rlt-0{background:rgba(239,68,68,0.12);color:#F87171;border:1px solid rgba(239,68,68,0.25);}
+.rlt-1{background:rgba(16,185,129,0.12);color:#34D399;border:1px solid rgba(16,185,129,0.25);}
+.rlt-5{background:rgba(59,130,246,0.12);color:var(--accent-blue-bright);border:1px solid rgba(59,130,246,0.25);}
+.rlt-6{background:rgba(139,92,246,0.12);color:#A78BFA;border:1px solid rgba(139,92,246,0.25);}
+.rlt-10{background:rgba(245,158,11,0.12);color:#FCD34D;border:1px solid rgba(245,158,11,0.25);}
+.rlt-jbod{background:rgba(107,114,128,0.12);color:#9CA3AF;border:1px solid rgba(107,114,128,0.25);}
+.raid-ref-table{width:100%;border-collapse:collapse;font-size:11px;}
+.raid-ref-table th{padding:7px 10px;text-align:left;color:var(--text-muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;border-bottom:1px solid var(--border-subtle);}
+.raid-ref-table td{padding:7px 10px;border-bottom:1px solid var(--border-subtle);color:var(--text-secondary);vertical-align:middle;}
+.raid-ref-table tr:last-child td{border-bottom:none;}
+.raid-ref-table tr:nth-child(even) td{background:rgba(255,255,255,0.015);}
 </style>
 </head>
 <body>
@@ -526,6 +554,158 @@ body{font-family:var(--font-ui);background:var(--bg-base);color:var(--text-prima
 
   </div><!-- /right-col -->
 </div><!-- /main -->
+
+<!-- ══ RAID Calculator ══════════════════════════════════════════════════════ -->
+<div class="section-sep" style="margin:32px auto 24px;">
+  <div class="sep-line"></div>
+  <div class="sep-label">💾 RAID Storage Calculator</div>
+  <div class="sep-line"></div>
+</div>
+
+<div class="main">
+
+  <div class="left-col">
+
+    <!-- RAID Inputs -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <div class="card-icon ci-teal">💾</div>
+          <div>
+            <div class="card-title">RAID Configuration</div>
+            <div class="card-desc">Compute usable capacity, fault tolerance &amp; storage efficiency</div>
+          </div>
+        </div>
+        <div id="raid-level-badge"></div>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:4px;">
+          <div class="fg">
+            <label class="fl">Number of Disks</label>
+            <input type="number" class="fi" id="r-disks" value="4" min="1" max="128" step="1" oninput="raidCalc()">
+          </div>
+          <div class="fg">
+            <label class="fl">Capacity / Disk</label>
+            <div style="display:flex;gap:6px;">
+              <input type="number" class="fi" id="r-cap" value="4" min="0.01" step="0.1" style="flex:1;" oninput="raidCalc()">
+              <select class="fs" id="r-unit" style="width:70px;" onchange="raidCalc()">
+                <option value="TB">TB</option>
+                <option value="GB">GB</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">RAID Level</label>
+            <select class="fs" id="r-level" onchange="raidCalc()">
+              <option value="0">RAID 0 — Striping</option>
+              <option value="1">RAID 1 — Mirroring</option>
+              <option value="5" selected>RAID 5 — Stripe + Parity</option>
+              <option value="6">RAID 6 — Dual Parity</option>
+              <option value="10">RAID 10 — Stripe of Mirrors</option>
+              <option value="jbod">JBOD — Just a Bunch of Disks</option>
+            </select>
+          </div>
+        </div>
+        <div id="raid-validation"></div>
+      </div>
+    </div>
+
+    <!-- RAID Results -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <div class="card-icon ci-green">📊</div>
+          <div>
+            <div class="card-title">Storage Results</div>
+            <div class="card-desc" id="raid-result-desc">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="raid-grid">
+          <div class="raid-metric">
+            <div class="raid-metric-lbl">Usable Capacity</div>
+            <div id="r-usable-val" class="raid-metric-val" style="color:var(--accent-green);">—</div>
+            <div id="r-usable-formula" class="raid-formula"></div>
+          </div>
+          <div class="raid-metric">
+            <div class="raid-metric-lbl">Raw / Total Capacity</div>
+            <div id="r-raw-val" class="raid-metric-val" style="color:var(--text-secondary);">—</div>
+            <div id="r-raw-formula" class="raid-formula"></div>
+          </div>
+          <div class="raid-metric">
+            <div class="raid-metric-lbl">Fault Tolerance</div>
+            <div id="r-fault-val" class="raid-metric-val">—</div>
+            <div id="r-fault-sub" class="raid-metric-sub"></div>
+          </div>
+          <div class="raid-metric">
+            <div class="raid-metric-lbl">Storage Efficiency</div>
+            <div id="r-eff-val" class="raid-metric-val">—</div>
+            <div id="r-eff-sub" class="raid-metric-sub"></div>
+          </div>
+        </div>
+        <div class="raid-eff-wrap">
+          <div class="raid-eff-label">
+            <span>Efficiency — Usable vs Raw</span>
+            <span id="r-eff-pct-lbl" class="raid-eff-pct">—</span>
+          </div>
+          <div class="ubar-track" style="height:8px;">
+            <div id="r-eff-bar" class="ubar-fill" style="width:0%;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;color:var(--text-muted);font-family:var(--font-mono);">
+            <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left-col -->
+
+  <!-- RAID Reference Sidebar -->
+  <div class="right-col">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <div class="card-icon ci-amber">📐</div>
+          <div>
+            <div class="card-title">RAID Level Reference</div>
+            <div class="card-desc">Formulas, minimums &amp; use cases</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body" style="padding:16px 20px;">
+        <div class="ref-block">
+          <table class="raid-ref-table">
+            <thead>
+              <tr><th>Level</th><th>Min</th><th>Usable</th><th>Fault</th><th>Eff.</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="raid-level-tag rlt-jbod">JBOD</span></td><td class="ref-mono">1</td><td>N×sz</td><td class="ref-red">0</td><td class="ref-mono ref-green">100%</td></tr>
+              <tr><td><span class="raid-level-tag rlt-0">RAID 0</span></td><td class="ref-mono">2</td><td>N×sz</td><td class="ref-red">0</td><td class="ref-mono ref-green">100%</td></tr>
+              <tr><td><span class="raid-level-tag rlt-1">RAID 1</span></td><td class="ref-mono">2</td><td>1×sz</td><td class="ref-green">N−1</td><td class="ref-mono ref-amber">1/N</td></tr>
+              <tr><td><span class="raid-level-tag rlt-5">RAID 5</span></td><td class="ref-mono">3</td><td>(N−1)×sz</td><td class="ref-amber">1</td><td class="ref-mono ref-amber">(N−1)/N</td></tr>
+              <tr><td><span class="raid-level-tag rlt-6">RAID 6</span></td><td class="ref-mono">4</td><td>(N−2)×sz</td><td class="ref-green">2</td><td class="ref-mono ref-amber">(N−2)/N</td></tr>
+              <tr><td><span class="raid-level-tag rlt-10">RAID 10</span></td><td class="ref-mono">4*</td><td>(N/2)×sz</td><td class="ref-amber">1+</td><td class="ref-mono ref-red">50%</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px;margin-bottom:10px;">* RAID 10 requires an even number of disks.</div>
+
+          <div class="ref-section-lbl">Use Cases</div>
+          <div class="ref-box"><div class="ref-box-title" style="color:#F87171;">RAID 0 — Performance only</div>Zero redundancy. Any single disk failure = total data loss. Use for scratch/temp only.</div>
+          <div class="ref-box"><div class="ref-box-title" style="color:#34D399;">RAID 1 — Boot / OS drives</div>Full mirror. Maximum protection, half the capacity. Ideal for small critical volumes.</div>
+          <div class="ref-box"><div class="ref-box-title" style="color:var(--accent-blue-bright);">RAID 5 — NAS &amp; file servers</div>Best balance of capacity, throughput, and single-disk redundancy.</div>
+          <div class="ref-box"><div class="ref-box-title" style="color:#A78BFA;">RAID 6 — Large arrays (&gt;6 disks)</div>Dual parity protects against 2 simultaneous failures — essential when rebuild time is long.</div>
+          <div class="ref-box"><div class="ref-box-title" style="color:#FCD34D;">RAID 10 — High-I/O databases</div>Best write performance with redundancy. Fixed 50% efficiency is the cost.</div>
+
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.6;padding:8px 10px;background:rgba(255,255,255,0.025);border-radius:var(--radius-sm);margin-top:4px;">
+            ℹ️ Usable values are theoretical. Real-world capacity is slightly less due to filesystem overhead. <strong style="color:var(--text-secondary);">RAID is not a backup.</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /right-col -->
+
+</div><!-- /raid main -->
 
 <script>
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -1164,6 +1344,124 @@ function infoIcon(tip) {
   groups.push({id:gid, name:'File / Print Servers', os:'windows-server', vcpu:2, ram:8, storage:200, count:1, sql:false, sqlEdition:'standard'});
   renderGroups();
 })();
+
+// ── RAID Calculator ───────────────────────────────────────────────────────────
+const RAID_RULES = {
+  jbod: {minDisks:1, evenRequired:false},
+  '0':  {minDisks:2, evenRequired:false},
+  '1':  {minDisks:2, evenRequired:false},
+  '5':  {minDisks:3, evenRequired:false},
+  '6':  {minDisks:4, evenRequired:false},
+  '10': {minDisks:4, evenRequired:true},
+};
+
+function raidFmt(v, unit, html) {
+  let num, u;
+  if (unit === 'TB') {
+    if (v >= 1000)     { num = (v/1000).toFixed(2); u = 'PB'; }
+    else if (v < 1)    { num = Math.round(v*1024);  u = 'GB'; }
+    else               { num = Math.round(v*100)/100; u = 'TB'; }
+  } else {
+    if (v >= 1024)     { num = (v/1024).toFixed(2); u = 'TB'; }
+    else               { num = Math.round(v*10)/10;  u = 'GB'; }
+  }
+  return html
+    ? `${num}<span class="raid-metric-unit">${u}</span>`
+    : `${num} ${u}`;
+}
+
+function raidCalc() {
+  const N     = parseInt(document.getElementById('r-disks').value)  || 0;
+  const cap   = parseFloat(document.getElementById('r-cap').value)  || 0;
+  const unit  = document.getElementById('r-unit').value;
+  const level = document.getElementById('r-level').value;
+  const rules = RAID_RULES[level];
+
+  const tagClass = level === 'jbod' ? 'rlt-jbod' : 'rlt-' + level;
+  const tagLabel = level === 'jbod' ? 'JBOD' : 'RAID ' + level;
+  document.getElementById('raid-level-badge').innerHTML =
+    `<span class="raid-level-tag ${tagClass}">${tagLabel}</span>`;
+
+  const valEl = document.getElementById('raid-validation');
+  if (N < 1 || cap <= 0) { valEl.innerHTML = ''; raidClear(); return; }
+
+  const errs = [];
+  if (N < rules.minDisks)             errs.push(`${tagLabel} requires at least ${rules.minDisks} disk${rules.minDisks > 1 ? 's' : ''} (you have ${N}).`);
+  if (rules.evenRequired && N % 2 !== 0) errs.push(`RAID 10 requires an even number of disks (you have ${N}).`);
+  if (errs.length) {
+    valEl.innerHTML = `<div class="raid-alert-err">⚠ ${errs.join(' ')}</div>`;
+    raidClear();
+    return;
+  }
+  valEl.innerHTML = '';
+
+  const raw = N * cap;
+  let usable, faultDisks, faultDesc, formula;
+
+  switch (level) {
+    case 'jbod':
+      usable = raw; faultDisks = 0;
+      faultDesc = 'No redundancy';
+      formula = `N × size = ${N} × ${cap} ${unit}`; break;
+    case '0':
+      usable = raw; faultDisks = 0;
+      faultDesc = 'Any single disk failure = total data loss';
+      formula = `N × size = ${N} × ${cap} ${unit}`; break;
+    case '1':
+      usable = cap; faultDisks = N - 1;
+      faultDesc = `${N - 1} disk${N - 1 !== 1 ? 's' : ''} — all disks are mirrors of each other`;
+      formula = `size = ${cap} ${unit} (full mirror)`; break;
+    case '5':
+      usable = (N - 1) * cap; faultDisks = 1;
+      faultDesc = '1 disk — equivalent to 1 parity disk spread across the array';
+      formula = `(N−1) × size = ${N - 1} × ${cap} ${unit}`; break;
+    case '6':
+      usable = (N - 2) * cap; faultDisks = 2;
+      faultDesc = '2 disks — dual distributed parity';
+      formula = `(N−2) × size = ${N - 2} × ${cap} ${unit}`; break;
+    case '10':
+      usable = (N / 2) * cap; faultDisks = 1;
+      faultDesc = `1 per mirror pair (up to ${N / 2} if failures spread across all pairs)`;
+      formula = `(N/2) × size = ${N / 2} × ${cap} ${unit}`; break;
+  }
+
+  const eff = (usable / raw) * 100;
+  const effColor = eff >= 75 ? 'var(--accent-green)' : eff >= 50 ? 'var(--accent-amber)' : 'var(--accent-red)';
+  const effGrad  = eff >= 75
+    ? 'linear-gradient(90deg,#10B981,#34D399)'
+    : eff >= 50
+    ? 'linear-gradient(90deg,#F59E0B,#FCD34D)'
+    : 'linear-gradient(90deg,#EF4444,#F87171)';
+  const faultColor = faultDisks >= 2 ? 'var(--accent-green)' : faultDisks === 1 ? 'var(--accent-amber)' : 'var(--accent-red)';
+
+  document.getElementById('r-usable-val').innerHTML      = raidFmt(usable, unit, true);
+  document.getElementById('r-usable-formula').textContent = formula;
+  document.getElementById('r-raw-val').innerHTML          = raidFmt(raw, unit, true);
+  document.getElementById('r-raw-formula').textContent    = `${N} disks × ${cap} ${unit} each`;
+  document.getElementById('r-fault-val').innerHTML        = `<span style="color:${faultColor};">${faultDisks}</span>`;
+  document.getElementById('r-fault-sub').textContent      = faultDesc;
+  document.getElementById('r-eff-val').innerHTML          = `<span style="color:${effColor};">${Math.round(eff)}<span class="raid-metric-unit">%</span></span>`;
+  document.getElementById('r-eff-sub').textContent        = `${raidFmt(usable, unit, false)} usable of ${raidFmt(raw, unit, false)} raw`;
+  document.getElementById('r-eff-pct-lbl').textContent    = Math.round(eff) + '%';
+  document.getElementById('r-eff-pct-lbl').style.color    = effColor;
+  document.getElementById('r-eff-bar').style.width        = Math.min(eff, 100) + '%';
+  document.getElementById('r-eff-bar').style.background   = effGrad;
+  document.getElementById('raid-result-desc').textContent = `${tagLabel} · ${N} × ${cap} ${unit} disks`;
+}
+
+function raidClear() {
+  ['r-usable-val','r-raw-val','r-fault-val','r-eff-val'].forEach(id => {
+    document.getElementById(id).innerHTML = '—';
+  });
+  ['r-usable-formula','r-raw-formula','r-fault-sub','r-eff-sub'].forEach(id => {
+    document.getElementById(id).textContent = '';
+  });
+  document.getElementById('r-eff-bar').style.width     = '0%';
+  document.getElementById('r-eff-pct-lbl').textContent = '—';
+  document.getElementById('raid-result-desc').textContent = '—';
+}
+
+raidCalc();
 </script>
 </body>
 </html>
