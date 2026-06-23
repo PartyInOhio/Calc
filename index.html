@@ -802,14 +802,17 @@ body{font-family:var(--font-ui);background:var(--bg-base);color:var(--text-prima
   </div>
 </div><!-- /reverse raid -->
 
-<!-- Export bar -->
+<!-- Export / Import bar -->
 <div style="max-width:1440px;margin:0 auto;padding:8px 32px 44px;">
   <div class="calc-row">
     <div>
-      <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Export RAID Results</div>
-      <div class="calc-hint" style="margin-top:3px;">Download a text report or copy to clipboard — captures both calculators' current inputs &amp; results.</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Export / Import RAID Results</div>
+      <div class="calc-hint" style="margin-top:3px;">Download a text report, copy to clipboard, or import a previously exported file to restore state.</div>
+      <div id="import-err" style="display:none;margin-top:7px;font-size:12px;color:#FCA5A5;"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
+      <input type="file" id="import-file" accept=".txt" style="display:none;" onchange="raidHandleImport(event)">
+      <button class="btn btn-secondary" onclick="raidImport()">📂 Import .txt</button>
       <button class="btn btn-secondary" id="raid-copy-btn" onclick="raidCopyClipboard()">📋 Copy to Clipboard</button>
       <button class="btn btn-primary" onclick="raidExportTxt()">⬇ Download .txt</button>
     </div>
@@ -1868,7 +1871,22 @@ function getExportText() {
     L,
   ].filter(l => l !== null).join('\n');
 
-  return lines;
+  // Machine-readable block so import can round-trip exactly
+  const data = {
+    v:           1,
+    raidDisks:   parseFloat(ti('r-disks'))   || 0,
+    raidCap:     parseFloat(ti('r-cap'))     || 0,
+    raidUnit:    ti('r-unit'),
+    raidLevel:   ti('r-level'),
+    rvTarget:    parseFloat(ti('rv-target')) || 0,
+    rvUnit:      ti('rv-unit'),
+    rvLevel:     ti('rv-level'),
+    rvMode:      rvMode,
+    rvKnown:     parseFloat(ti('rv-known'))  || 0,
+    rvKnownUnit: rvMode === 'size' ? null : ti('rv-known-unit'),
+  };
+
+  return lines + '\n===CALC-DATA===\n' + JSON.stringify(data) + '\n===END-DATA===\n';
 }
 
 function raidExportTxt() {
@@ -1908,6 +1926,59 @@ async function raidCopyClipboard() {
     btn.style.color = '';
     btn.style.borderColor = '';
   }, 2000);
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+function raidImport() {
+  document.getElementById('import-file').click();
+}
+
+function raidHandleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text  = e.target.result;
+    const match = text.match(/===CALC-DATA===\s*\n([\s\S]*?)\n===END-DATA===/);
+    if (!match) {
+      showImportErr("Couldn't read calculator data from this file. Make sure it was exported from this tool.");
+      return;
+    }
+    try {
+      raidApplyImport(JSON.parse(match[1].trim()));
+      showImportErr('');
+    } catch (_) {
+      showImportErr('Failed to parse calculator data — the file may be corrupted.');
+    }
+    event.target.value = ''; // allow re-importing the same file
+  };
+  reader.readAsText(file);
+}
+
+function raidApplyImport(d) {
+  // Forward RAID calculator
+  if (d.raidDisks != null) document.getElementById('r-disks').value = d.raidDisks;
+  if (d.raidCap   != null) document.getElementById('r-cap').value   = d.raidCap;
+  if (d.raidUnit  != null) document.getElementById('r-unit').value  = d.raidUnit;
+  if (d.raidLevel != null) document.getElementById('r-level').value = String(d.raidLevel);
+  raidCalc();
+
+  // Reverse RAID calculator — restore all fields before triggering recalc
+  if (d.rvTarget != null) document.getElementById('rv-target').value = d.rvTarget;
+  if (d.rvUnit   != null) document.getElementById('rv-unit').value   = d.rvUnit;
+  if (d.rvLevel  != null) document.getElementById('rv-level').value  = String(d.rvLevel);
+  if (d.rvKnown  != null) document.getElementById('rv-known').value  = d.rvKnown;
+  if (d.rvKnownUnit && d.rvMode !== 'size')
+    document.getElementById('rv-known-unit').value = d.rvKnownUnit;
+
+  // rvSetMode restores the toggle state and fires rvCalc()
+  rvSetMode(d.rvMode || 'count');
+}
+
+function showImportErr(msg) {
+  const el = document.getElementById('import-err');
+  el.textContent    = msg;
+  el.style.display  = msg ? 'block' : 'none';
 }
 </script>
 </body>
